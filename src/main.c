@@ -3,7 +3,10 @@
 #include <string.h>
 #include <conio.h>
 #include <stdbool.h>
+#include <Windows.h>
 
+void gotoxy(int x, int y);
+void getxy(int *x, int *y);
 char* ModifyString(char*, char*, int);
 
 int main()
@@ -18,26 +21,45 @@ int main()
 	return 0;
 }
 
+void gotoxy(int x, int y)
+{
+	COORD position = { x, y };
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), position);
+}
+
+void getxy(int *x, int *y)
+{
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi))
+	{
+		*x = csbi.dwCursorPosition.X;
+		*y = csbi.dwCursorPosition.Y;
+	}
+}
+
 char* ModifyString(char *prefix, char *string, int size)
 {
+	int x, y;
 	int ch, ch2, len;
-	bool isPrinted, is2Byte, *twoByte = (bool*)calloc(size, sizeof(bool));
+	bool isPrinted, *is2Byte = (bool*)calloc(size, sizeof(bool));
 
 	for (size_t i = 0; i < strlen(string); i++)
 	{
 		if (((unsigned char)string[i] & 0x80) == 0x80)
 		{
-			twoByte[i + 1] = true;
+			is2Byte[i + 1] = true;
 			i++;
 		}
 	}
 
+	getxy(&x, &y);
 	isPrinted = false;
 	while (1)
 	{
 		if (!isPrinted)
 		{
-			printf("\r%s%s", prefix, string);
+			gotoxy(x, y);
+			printf("%s%s", prefix, string);
 			isPrinted = true;
 		}
 		if (_kbhit())
@@ -49,15 +71,13 @@ char* ModifyString(char *prefix, char *string, int size)
 				len = strlen(string);
 				if (len > 0)
 				{
-					is2Byte = false;
-					if (1 < len && twoByte[len - 1])
+					if (1 < len && is2Byte[len - 1])
 					{
-						twoByte[len - 1] = false;
+						is2Byte[len - 1] = false;
 						string[len - 2] = '\0';
-						is2Byte = true;
 						printf("\b\b  \b\b");
 					}
-					if (!is2Byte)
+					else
 					{
 						string[len - 1] = '\0';
 						printf("\b \b");
@@ -75,7 +95,7 @@ char* ModifyString(char *prefix, char *string, int size)
 						string[len] = ch;
 						string[len + 1] = ch2;
 						string[len + 2] = '\0';
-						twoByte[len + 1] = true;
+						is2Byte[len + 1] = true;
 					}
 				}
 				else
@@ -91,6 +111,6 @@ char* ModifyString(char *prefix, char *string, int size)
 		}
 	}
 	printf("\n");
-	free(twoByte);
+	free(is2Byte);
 	return string;
 }
